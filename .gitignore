@@ -2,3 +2,9 @@
 sample image
 tweets.json
 tweets.csv
+
+# Python tool (xtool) — local env, outputs, caches
+xtool/.venv/
+xtool/out/
+__pycache__/
+*.pyc
