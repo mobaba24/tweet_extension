@@ -138,10 +138,11 @@
       <select id="imageFilter">
         <option value="all">All posts</option>
         <option value="any">Only posts with an image</option>
-        <option value="like">Only images like the sample (people/portraits)</option>
+        <option value="like">Only images like the sample (solo female portraits)</option>
       </select>
-      <p class="hint">"Like the sample" analyses each photo's pixels and keeps only
-        person/portrait-style images (the class learned from the sample set).</p>
+      <p class="hint">"Like the sample" runs a face/gender model on each photo and
+        keeps only solo female portraits/selfies — rejecting landscapes, screenshots,
+        collages, group shots, news stills and men. First run loads the model (~2&nbsp;MB).</p>
     </div>
     <button id="startScraping">Start Scraping</button>
     <p class="fields">Exports <strong>JSON + CSV</strong> per tweet: username,

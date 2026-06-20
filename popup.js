@@ -472,7 +472,7 @@ function scrapeTweets(scrollLimit, imageFilter) {
 
     // ---- CSV export --------------------------------------------------------
     const toCsv = (rows) => {
-        const headers = ["username", "handle", "gender", "date", "likes", "comments", "retweets", "views", "imageCount", "imageUrl", "images", "imageScore", "imageSkin", "text"];
+        const headers = ["username", "handle", "gender", "date", "likes", "comments", "retweets", "views", "imageCount", "imageUrl", "images", "faceCount", "faceGender", "faceProb", "text"];
         const esc = (v) => {
             if (Array.isArray(v)) v = v.join(" | ");
             return '"' + String(v ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ") + '"';
@@ -516,18 +516,23 @@ function scrapeTweets(scrollLimit, imageFilter) {
             const imageUrl = images[0] || "none";
 
             // Image filter. "any" = has a photo; "like" = photo whose CONTENT
-            // matches the sample set (analysed pixel-by-pixel in the worker).
+            // matches the sample class (solo female portrait), judged by the
+            // face/gender model in the background worker.
             if (imageFilter === "any" && imageCount === 0) continue;
-            let imageScore = null, imageSkin = null;
+            let faceCount = null, faceGender = null, faceProb = null;
             if (imageFilter === "like") {
                 if (imageCount === 0) continue;
                 let matched = false;
                 for (const url of images) {
                     const r = await classifyUrl(url);
-                    if (r && r.skin != null) { imageScore = r.dist; imageSkin = r.skin; }
+                    if (r) {
+                        if (r.faceCount != null) faceCount = r.faceCount;
+                        if (r.faceGender) faceGender = r.faceGender;
+                        if (r.faceProb != null) faceProb = r.faceProb;
+                    }
                     if (r && r.match) { matched = true; break; }
                 }
-                if (!matched) continue;   // no photo on this post looks like the sample
+                if (!matched) continue;   // no photo on this post is a solo female portrait
             }
 
             // De-dupe across scrolls (use a stable key, before async work paid off).
@@ -542,7 +547,7 @@ function scrapeTweets(scrollLimit, imageFilter) {
             const likes = fromGroupLabel(tweet, ["like"]) || getMetric(tweet, ["like", "unlike"]);
             const views = fromGroupLabel(tweet, ["view"]);
 
-            results.push({ username, handle, gender, date, likes, comments, retweets, views, imageCount, imageUrl, images, imageScore, imageSkin, text });
+            results.push({ username, handle, gender, date, likes, comments, retweets, views, imageCount, imageUrl, images, faceCount, faceGender, faceProb, text });
         }
     };
 
