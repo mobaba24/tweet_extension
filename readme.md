@@ -1,9 +1,10 @@
 # نصب افزونه Tweet_Extension
 
-> **Fork note (v1.2):** Each scraped tweet now also includes engagement metrics
+> **Fork note (v1.3):** Each scraped tweet now also includes engagement metrics
 > and account info. Scraping produces **two downloads** — `tweets.json` (raw) and
 > `tweets.csv` (spreadsheet-friendly, UTF‑8 BOM so Persian/emoji render in Excel).
-> Each record looks like:
+> The popup also has an **"Only posts with an image"** checkbox to gather just
+> media posts. Each record looks like:
 >
 > ```json
 > {
@@ -15,12 +16,20 @@
 >   "comments": 12,
 >   "retweets": 5,
 >   "views": 78910,
->   "imageUrl": "none",
+>   "imageCount": 2,
+>   "imageUrl": "https://pbs.twimg.com/media/...",
+>   "images": ["https://pbs.twimg.com/media/...", "..."],
 >   "text": "..."
 > }
 > ```
 >
 > Notes:
+> - **"Only posts with an image"** filters out text-only tweets. A "post with an
+>   image" is detected by a rule *learned from a sample URL set*: real photo
+>   attachments are served from `pbs.twimg.com/media/<id>` (100% of the samples),
+>   whereas avatars (`/profile_images/`) and link-card thumbnails (`/card_img/`)
+>   are excluded. `images` lists every photo on the tweet (X allows up to 4);
+>   `imageCount` is how many; `imageUrl` is the first (or `"none"`).
 > - **Counts** come from X's locale-stable `data-testid` buttons and the
 >   engagement bar's `aria-label`; abbreviated values (`1.2K`, `3M`) are expanded
 >   to integers.

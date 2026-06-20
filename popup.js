@@ -1,15 +1,16 @@
 document.getElementById("startScraping").addEventListener("click", () => {
     const scrollLimit = document.getElementById("scrollLimit").value;
+    const imagesOnly = document.getElementById("imagesOnly").checked;
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         chrome.scripting.executeScript({
             target: { tabId: tabs[0].id },
             func: scrapeTweets,
-            args: [parseInt(scrollLimit)]
+            args: [parseInt(scrollLimit), imagesOnly]
         });
     });
 });
 
-function scrapeTweets(scrollLimit) {
+function scrapeTweets(scrollLimit, imagesOnly) {
     const results = [];
     const seen = new Set();
     let scrolled = 0;
@@ -452,10 +453,29 @@ function scrapeTweets(scrollLimit) {
         return "";
     };
 
+    // ---- Image detection (learned from the sample URL set) -----------------
+    // "Posts with an image" = posts carrying a real photo attachment. Every URL
+    // in the sample set is served from pbs.twimg.com/media/<id> with an id made
+    // of [A-Za-z0-9_-] (100% coverage of the 51 samples). Avatars
+    // (/profile_images/) and link-card thumbnails (/card_img/) deliberately do
+    // NOT match, so only genuine post photos count.
+    const MEDIA_RE = /^https?:\/\/pbs\.twimg\.com\/media\/[A-Za-z0-9_-]+/i;
+    const getImages = (tweet) => {
+        const urls = [];
+        tweet.querySelectorAll('[data-testid="tweetPhoto"] img, img[src*="pbs.twimg.com/media/"]').forEach(img => {
+            const src = img.getAttribute("src") || "";
+            if (MEDIA_RE.test(src) && !urls.includes(src)) urls.push(src);
+        });
+        return urls;
+    };
+
     // ---- CSV export --------------------------------------------------------
     const toCsv = (rows) => {
-        const headers = ["username", "handle", "gender", "date", "likes", "comments", "retweets", "views", "imageUrl", "text"];
-        const esc = (v) => '"' + String(v ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ") + '"';
+        const headers = ["username", "handle", "gender", "date", "likes", "comments", "retweets", "views", "imageCount", "imageUrl", "images", "text"];
+        const esc = (v) => {
+            if (Array.isArray(v)) v = v.join(" | ");
+            return '"' + String(v ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ") + '"';
+        };
         const lines = [headers.join(",")];
         rows.forEach(r => lines.push(headers.map(h => esc(r[h])).join(",")));
         return lines.join("\r\n");
@@ -478,7 +498,10 @@ function scrapeTweets(scrollLimit) {
             const text = tweet.querySelector("div[lang]")?.innerText;
             const username = tweet.querySelector("div span span")?.innerText;
             const date = tweet.querySelector("time")?.getAttribute("datetime");
-            const imageUrl = tweet.querySelector("img[alt='Image']")?.getAttribute("src") || "none";
+
+            const images = getImages(tweet);
+            const imageCount = images.length;
+            const imageUrl = images[0] || "none";
 
             const handle = getHandle(tweet);
             const gender = guessGender(username);
@@ -489,11 +512,13 @@ function scrapeTweets(scrollLimit) {
             const views = fromGroupLabel(tweet, ["view"]);
 
             if (text && username && date) {
+                // "Only posts with an image" option: skip text-only tweets.
+                if (imagesOnly && imageCount === 0) return;
                 // Skip tweets already captured on a previous scroll.
                 const key = `${handle || username}|${date}|${text}`;
                 if (seen.has(key)) return;
                 seen.add(key);
-                results.push({ username, handle, gender, date, likes, comments, retweets, views, imageUrl, text });
+                results.push({ username, handle, gender, date, likes, comments, retweets, views, imageCount, imageUrl, images, text });
             }
         });
 

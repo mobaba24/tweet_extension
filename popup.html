@@ -97,6 +97,23 @@
     .fields strong {
       color: #fff;
     }
+
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 12px 0 4px;
+      font-size: 0.95em;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .option input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #1d9bf0;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -104,10 +121,14 @@
     <h3>X Scraper</h3>
     <label for="scrollLimit">Scroll Limit:</label>
     <input type="number" id="scrollLimit" placeholder="e.g., 10" />
+    <label class="option" for="imagesOnly">
+      <input type="checkbox" id="imagesOnly" />
+      Only posts with an image
+    </label>
     <button id="startScraping">Start Scraping</button>
     <p class="fields">Exports <strong>JSON + CSV</strong> per tweet: username,
       <strong>@handle</strong>, <strong>gender</strong>, date, likes, comments,
-      retweets, views, image &amp; text.</p>
+      retweets, views, <strong>image(s)</strong> &amp; text.</p>
     <footer>
       <p>Developed by <a href="https://jahaniwww.com" target="_blank">Ali Jahani</a></p>
     </footer>
