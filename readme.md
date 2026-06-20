@@ -26,9 +26,14 @@
 >   to integers.
 > - **`handle`** is the `@username`, read from the User-Name block or the tweet
 >   permalink.
-> - **`gender`** is *inferred* from the first name of the display name using a
->   built-in name dictionary (X exposes no gender field). It returns
->   `male` / `female` / `unknown` and is best-effort — treat it as a heuristic.
+> - **`gender`** is *inferred* from the first given name in the display name
+>   (X exposes no gender field). It is tuned for **Persian/Iranian names**: the
+>   dictionary holds both Persian-script forms and common Latin transliterations
+>   (e.g. حسین / Hossein / Hosein / Hussein), names are normalised before lookup
+>   (Arabic↔Persian yeh/kaf, diacritics, ZWNJ in compounds like علی‌رضا), and
+>   leading honorifics (Dr, Eng, Seyed, Haj, دکتر، مهندس، سید، حاج …) are skipped.
+>   Returns `male` / `female` / `unknown`; ambiguous/unknown names stay `unknown`.
+>   Still best-effort — treat it as a heuristic, not ground truth.
 > - Duplicate tweets across scrolls are de-duplicated, and `x.com` was added to
 >   the host permissions alongside `twitter.com`.
 
