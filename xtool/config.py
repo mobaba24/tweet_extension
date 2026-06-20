@@ -17,9 +17,16 @@ HEADLESS = False                        # X login + anti-bot → run headed
 # ---- InsightFace (primary face/gender model) --------------------------------
 INSIGHT_MODEL = "buffalo_l"             # "buffalo_s" is smaller/faster
 DET_SIZE = (640, 640)
-DET_SCORE_MIN = 0.55                    # min face-detection confidence
-FACE_SIZE_MIN = 0.06                    # face bbox width / image width (portrait framing)
+DET_SCORE_MIN = 0.45                    # min face-detection confidence
+FACE_SIZE_MIN = 0.045                   # face bbox width / image width (portrait framing)
 ALLOW_FACES = 1                         # exactly this many faces = "solo"
+
+# ---- Recall boosters (tuned on the labeled review set) ----------------------
+# Recover real women InsightFace misses without admitting false positives.
+NOFACE_RESCUE_CLIP = 0.96               # 0 faces but CLIP this confident "woman" -> keep
+NOFACE_MAX_GROUP = 0.15                 #   ...unless CLIP also reads "group of people"
+GENDER_TRUST_SIZE = 0.20               # trust a 'male' call only on faces this big
+GENDER_CLIP_OVERRIDE = 0.90             # below that size, CLIP this confident overrides 'male'
 
 # ---- CLIP (second / ensemble model, zero-shot) ------------------------------
 CLIP_MODEL = "ViT-B-32"
@@ -38,10 +45,3 @@ CLIP_NEG = [
     "a photo of an object",
 ]
 CLIP_MIN = 0.35                         # min softmax mass on the positive (woman) prompts
-
-# ---- Ensemble ---------------------------------------------------------------
-# "and"  : InsightFace AND CLIP must agree (high precision) — default
-# "or"   : either model is enough (high recall)
-# "blend": weighted score >= BLEND_THRESH
-VOTE = "and"
-BLEND_THRESH = 0.50

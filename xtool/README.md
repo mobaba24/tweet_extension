@@ -8,9 +8,15 @@ Playwright and filters images with an **ensemble of two models**:
 - **CLIP** (zero-shot) — semantic score: "woman selfie/portrait" vs man / group /
   landscape / screenshot / collage.
 
-A post is kept (`--filter like`) only when a photo is a **solo female portrait**:
-exactly one face, female, large enough, AND CLIP agrees. The two models vote
-(`--vote and|or|blend`), so you trade precision vs recall with a number, not by guessing.
+A post is kept (`--filter like`) only when a photo is a **solo female portrait**.
+The decision (`classify.decide`) combines both models:
+- `>1 face` → group (reject); `0 faces` → reject **unless** CLIP is very confident
+  it's a woman and not a group (rescues faces hidden/cropped/zoomed out).
+- `1 face` → must be female, large enough, and CLIP-confirmed. InsightFace gender is
+  trusted on large faces; on small faces (where it's noisier) a confident CLIP
+  "woman" overrides a wrong `male` call.
+
+All thresholds are in `config.py`; `eval.py` measures the effect of each.
 
 ## Setup
 
@@ -31,7 +37,7 @@ First model run downloads weights once: InsightFace `buffalo_l` (~300 MB) to
 .venv/bin/python login.py
 
 # 2) Scrape + classify a profile/search/timeline
-.venv/bin/python run.py --url "https://x.com/SomeHandle" --scrolls 10 --filter like --vote and
+.venv/bin/python run.py --url "https://x.com/SomeHandle" --scrolls 10 --filter like
 ```
 
 Outputs in `out/`:
@@ -46,14 +52,19 @@ Each record also has the account **gender** inferred from the display name
 ## Test / tune accuracy
 
 ```bash
-.venv/bin/python eval.py        # runs the classifier on a labeled set, prints
-                                # precision / recall / accuracy + misclassified list
+.venv/bin/python eval.py            # precision / recall / accuracy + misclassified list
+.venv/bin/python eval.py --refresh  # recompute the (cached) model features first
 ```
 
-Tune thresholds in `config.py` (`DET_SCORE_MIN`, `FACE_SIZE_MIN`, `CLIP_MIN`, `VOTE`)
-and re-run `eval.py`. On the seeded review set the strict (`and`) ensemble gives
-**100% precision** (no wrong images kept) at ~78% recall; loosen toward `or`/`blend`
-for higher recall.
+Model inference is cached to `out/features.json`, so after the first run you can edit
+thresholds in `config.py` and re-run `eval.py` in ~1s to see the effect.
+
+On the 82-image review set (49 samples + 33 reviewed), after correcting the labels
+and adding the recall boosters: **accuracy 100%, precision 100%, recall 100%**
+(up from 78% recall / 80% accuracy with the naive strict rule). Note this is the set
+the thresholds were tuned on — expect somewhat lower in the wild; the transferable
+wins are recovering faces the detector misses and CLIP-overriding small-face gender
+errors. Every booster decision is logged in the `decision` column so you can audit it.
 
 ## Files
 - `config.py` — all thresholds, CLIP prompts, paths

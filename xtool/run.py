@@ -65,9 +65,7 @@ def main():
     ap.add_argument("--url", default="https://x.com/home")
     ap.add_argument("--scrolls", type=int, default=config.SCROLLS)
     ap.add_argument("--filter", choices=["all", "any", "like"], default="like")
-    ap.add_argument("--vote", choices=["and", "or", "blend"], default=config.VOTE)
     args = ap.parse_args()
-    config.VOTE = args.vote
     config.OUT.mkdir(parents=True, exist_ok=True)
 
     print(f"Scraping {args.url} ({args.scrolls} scrolls)…")

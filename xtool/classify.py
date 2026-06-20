@@ -5,9 +5,9 @@ Model A — InsightFace (buffalo_l): face detection + gender. Gives how many fac
 Model B — CLIP (zero-shot): semantic score of the whole image against
           "woman selfie/portrait" prompts vs man/group/landscape/screenshot/etc.
 
-A photo matches when (default VOTE="and") BOTH agree it's a solo woman portrait.
-The two models are complementary: InsightFace nails face-count/gender, CLIP catches
-non-person scenes (landscapes, screenshots, collages) and overall "selfie-ness".
+A photo matches when the combined rule in decide() is satisfied. The two models are
+complementary: InsightFace nails face-count/gender, CLIP catches non-person scenes
+(landscapes, screenshots, collages) and rescues faces the detector misses.
 """
 import numpy as np
 from PIL import Image
@@ -64,61 +64,79 @@ class Classifier:
             imf = self.clip_model.encode_image(img)
             imf /= imf.norm(dim=-1, keepdim=True)
             probs = (100.0 * imf @ self.text_features.T).softmax(dim=-1).squeeze(0).numpy()
-        pos_mass = float(probs[:self.n_pos].sum())
-        man = float(probs[self.n_pos])  # first negative prompt is "a photo of a man"
-        return {"posMass": pos_mass, "womanOverMan": pos_mass > man}
-
-    # ---- ensemble decision -------------------------------------------------
-    def classify(self, pil):
-        faces = self._insight(pil)
-        clip = self._clip(pil)
-        face = faces[0] if faces else None
-
-        insight_ok = (
-            len(faces) == config.ALLOW_FACES
-            and face is not None
-            and face["gender"] == "female"
-            and face["det"] >= config.DET_SCORE_MIN
-            and face["wFrac"] >= config.FACE_SIZE_MIN
-        )
-        clip_ok = clip["posMass"] >= config.CLIP_MIN and clip["womanOverMan"]
-
-        if config.VOTE == "and":
-            match = insight_ok and clip_ok
-        elif config.VOTE == "or":
-            match = insight_ok or clip_ok
-        else:  # blend
-            score = 0.5 * (1.0 if insight_ok else 0.0) + 0.5 * clip["posMass"]
-            match = score >= config.BLEND_THRESH
-
         return {
-            "match": bool(match),
-            "reason": self._reason(faces, face, insight_ok, clip_ok),
-            "faceCount": len(faces),
-            "faceGender": face["gender"] if face else None,
-            "faceDet": round(face["det"], 3) if face else None,
-            "faceSizeFrac": round(face["wFrac"], 3) if face else None,
-            "clipPos": round(clip["posMass"], 3),
-            "clipWomanOverMan": clip["womanOverMan"],
-            "insightOk": insight_ok,
-            "clipOk": clip_ok,
+            "posMass": float(probs[:self.n_pos].sum()),   # woman-portrait mass
+            "man": float(probs[self.n_pos]),               # "a photo of a man"
+            "group": float(probs[self.n_pos + 1]),         # "a group of people"
         }
 
-    @staticmethod
-    def _reason(faces, face, insight_ok, clip_ok):
-        if not faces:
-            return "no-face"
-        if len(faces) > config.ALLOW_FACES:
-            return "group"
-        if face and face["gender"] != "female":
-            return "not-female"
-        if face and face["wFrac"] < config.FACE_SIZE_MIN:
-            return "face-too-small"
-        if not clip_ok:
-            return "clip-reject"
-        if insight_ok and clip_ok:
-            return "match"
-        return "reject"
+    # ---- raw signals (for tuning / diagnostics) ---------------------------
+    def features(self, pil):
+        faces = self._insight(pil)
+        clip = self._clip(pil)
+        big = faces[0] if faces else None
+        return {
+            "faceCount": len(faces),
+            "faceGender": big["gender"] if big else None,
+            "faceDet": round(big["det"], 3) if big else None,
+            "faceSizeFrac": round(big["wFrac"], 3) if big else None,
+            "clipPos": round(clip["posMass"], 3),
+            "clipMan": round(clip["man"], 3),
+            "clipGroup": round(clip["group"], 3),
+        }
+
+    def classify(self, pil):
+        return decide(self.features(pil))
+
+
+def decide(f, cfg=config):
+    """Ensemble decision -> solo female portrait? Operates on features() output.
+
+    Rules (tuned on the labeled review set):
+      - >1 face                         -> group (reject)
+      - 0 faces but CLIP very confident -> rescue (face hidden/cropped/zoomed),
+        unless CLIP also reads "group"
+      - 1 face: must be female & large enough & CLIP agrees. InsightFace gender is
+        trusted on large faces; on small faces (where it's noisier) a confident CLIP
+        "woman" can override a 'male' call.
+    """
+    n = f["faceCount"]
+    clip_pos, clip_man, clip_group = f["clipPos"], f["clipMan"], f["clipGroup"]
+    clip_woman = clip_pos > clip_man
+
+    def out(match, reason):
+        return {"match": bool(match), "reason": reason, **f}
+
+    if n > cfg.ALLOW_FACES:
+        return out(False, "group")
+
+    if n == 0:
+        if (cfg.NOFACE_RESCUE_CLIP is not None and clip_pos >= cfg.NOFACE_RESCUE_CLIP
+                and clip_woman and clip_group <= cfg.NOFACE_MAX_GROUP):
+            return out(True, "rescue-noface")
+        return out(False, "no-face")
+
+    size, det, female = f["faceSizeFrac"], f["faceDet"], f["faceGender"] == "female"
+    if det < cfg.DET_SCORE_MIN:
+        return out(False, "low-det")
+
+    if size < cfg.FACE_SIZE_MIN:
+        # solo but small face — keep only if CLIP is a confident woman
+        if clip_pos >= cfg.NOFACE_RESCUE_CLIP and clip_woman:
+            return out(True, "small-but-clip")
+        return out(False, "face-too-small")
+
+    if not female:
+        # trust a 'male' call on a big/clear face; on smaller faces defer to CLIP
+        if size >= cfg.GENDER_TRUST_SIZE:
+            return out(False, "male-confident")
+        if not (clip_pos >= cfg.GENDER_CLIP_OVERRIDE and clip_woman):
+            return out(False, "not-female")
+        # else: CLIP overrides a small-face male -> treat as female
+
+    if clip_pos >= cfg.CLIP_MIN and clip_woman:
+        return out(True, "match")
+    return out(False, "clip-reject")
 
 
 def load_image(path):
