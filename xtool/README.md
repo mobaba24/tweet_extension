@@ -77,8 +77,10 @@ thresholds in `config.py` and re-run `eval.py` in ~1s to see the effect.
 Accuracy:
 - 82-image tuning set: precision 98.5%, recall 100% (the one FP is a dark, faceless
   group of women — see the body-shot caveat below).
-- 45-post out-of-sample file (a real export, never tuned on): **34/34 keeps correct
-  (no men/groups/non-person), 0 missed women** on manual review.
+- 45-post out-of-sample file: 34/34 keeps correct, 0 missed women (manual review).
+- 83-post out-of-sample file: 56 keeps, ~1 borderline; the only object false positive
+  (a decorative plate + pet reflection CLIP misread as a woman) was removed by adding
+  pet/decorative negative prompts to `CLIP_NEG`.
 
 The target includes **faceless body shots of women** (`NOFACE_RESCUE_CLIP = 0.85`).
 Because a faceless image can't be face-counted, a faceless *group* of women can

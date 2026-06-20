@@ -40,11 +40,14 @@ CLIP_POS = [
     "a photo of a woman",
 ]
 CLIP_NEG = [
-    "a photo of a man",                 # index 0 of the negatives == "man"
-    "a group of people",
+    "a photo of a man",                 # index 0 of the negatives == "man" (decide() reads this)
+    "a group of people",                # index 1 == "group" (decide() reads this)
     "a landscape photograph",
     "a screenshot or chart",
     "a collage of pictures",
     "a photo of an object",
+    "a cat or a dog",                   # appended: cut down no-face object/animal false positives
+    "a pet animal",
+    "a decorative plate or pattern",
 ]
 CLIP_MIN = 0.35                         # min softmax mass on the positive (woman) prompts
