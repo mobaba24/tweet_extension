@@ -8,3 +8,6 @@ xtool/.venv/
 xtool/out/
 __pycache__/
 *.pyc
+
+# macOS
+.DS_Store
