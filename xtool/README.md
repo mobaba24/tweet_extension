@@ -1,7 +1,7 @@
 # xtool — standalone X scraper + image classifier (Python)
 
-A local, testable replacement for the browser extension. It scrapes X posts with
-Playwright and filters images with an **ensemble of two models**:
+A local, testable tool that takes X posts (from the extension's export — recommended
+— or via Playwright) and filters images with an **ensemble of two models**:
 
 - **InsightFace** (`buffalo_l`) — face detection + gender. Gives face count, gender
   and face size.
@@ -32,11 +32,26 @@ First model run downloads weights once: InsightFace `buffalo_l` (~300 MB) to
 
 ## Use
 
-```bash
-# 1) Log into X once (persists a browser profile under out/chrome-profile)
-.venv/bin/python login.py
+### Recommended: extension → ingest (X blocks automated browsers)
 
-# 2) Scrape + classify a profile/search/timeline
+X detects and blocks Playwright/automation at login, so let the **extension** do the
+scraping from your real, logged-in session, then feed its export to this tool:
+
+1. In Chrome, open the X timeline/profile you want, click the **Tweet Scraper**
+   extension, set the **Image filter** to **"Only posts with an image"**, and run it.
+   It downloads `tweets.json` (every post + all image URLs).
+2. Classify that export here — no browser, fully offline:
+
+```bash
+.venv/bin/python run.py --input ~/Downloads/tweets.json --filter like
+```
+
+`--input` accepts the extension's `tweets.json` **or** `tweets.csv`.
+
+### Alternative: Playwright (only if X isn't blocking you)
+
+```bash
+.venv/bin/python login.py                                   # log into X once
 .venv/bin/python run.py --url "https://x.com/SomeHandle" --scrolls 10 --filter like
 ```
 
