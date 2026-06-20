@@ -1,16 +1,17 @@
 document.getElementById("startScraping").addEventListener("click", () => {
     const scrollLimit = document.getElementById("scrollLimit").value;
-    const imagesOnly = document.getElementById("imagesOnly").checked;
+    // "all" | "any" (has a photo) | "like" (photo visually like the sample set)
+    const imageFilter = document.getElementById("imageFilter").value;
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         chrome.scripting.executeScript({
             target: { tabId: tabs[0].id },
             func: scrapeTweets,
-            args: [parseInt(scrollLimit), imagesOnly]
+            args: [parseInt(scrollLimit), imageFilter]
         });
     });
 });
 
-function scrapeTweets(scrollLimit, imagesOnly) {
+function scrapeTweets(scrollLimit, imageFilter) {
     const results = [];
     const seen = new Set();
     let scrolled = 0;
@@ -471,7 +472,7 @@ function scrapeTweets(scrollLimit, imagesOnly) {
 
     // ---- CSV export --------------------------------------------------------
     const toCsv = (rows) => {
-        const headers = ["username", "handle", "gender", "date", "likes", "comments", "retweets", "views", "imageCount", "imageUrl", "images", "text"];
+        const headers = ["username", "handle", "gender", "date", "likes", "comments", "retweets", "views", "imageCount", "imageUrl", "images", "imageScore", "imageSkin", "text"];
         const esc = (v) => {
             if (Array.isArray(v)) v = v.join(" | ");
             return '"' + String(v ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ") + '"';
@@ -493,49 +494,70 @@ function scrapeTweets(scrollLimit, imagesOnly) {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
 
-    const scrape = () => {
-        document.querySelectorAll("article").forEach(tweet => {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // Ask the background service worker to analyse an image's CONTENT (pixels)
+    // and tell us whether it looks like the learned sample set. The worker does
+    // the fetch + canvas work because page <img> pixels are cross-origin-tainted.
+    const classifyUrl = async (url) => {
+        try { return await chrome.runtime.sendMessage({ type: "classifyImage", url }); }
+        catch (e) { return { match: false, error: String(e) }; }
+    };
+
+    const collect = async () => {
+        for (const tweet of document.querySelectorAll("article")) {
             const text = tweet.querySelector("div[lang]")?.innerText;
             const username = tweet.querySelector("div span span")?.innerText;
             const date = tweet.querySelector("time")?.getAttribute("datetime");
+            if (!(text && username && date)) continue;
 
             const images = getImages(tweet);
             const imageCount = images.length;
             const imageUrl = images[0] || "none";
 
+            // Image filter. "any" = has a photo; "like" = photo whose CONTENT
+            // matches the sample set (analysed pixel-by-pixel in the worker).
+            if (imageFilter === "any" && imageCount === 0) continue;
+            let imageScore = null, imageSkin = null;
+            if (imageFilter === "like") {
+                if (imageCount === 0) continue;
+                let matched = false;
+                for (const url of images) {
+                    const r = await classifyUrl(url);
+                    if (r && r.skin != null) { imageScore = r.dist; imageSkin = r.skin; }
+                    if (r && r.match) { matched = true; break; }
+                }
+                if (!matched) continue;   // no photo on this post looks like the sample
+            }
+
+            // De-dupe across scrolls (use a stable key, before async work paid off).
+            const key = `${getHandle(tweet) || username}|${date}|${text}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+
             const handle = getHandle(tweet);
             const gender = guessGender(username);
-
             const comments = fromGroupLabel(tweet, ["repl", "comment"]) || getMetric(tweet, ["reply"]);
             const retweets = fromGroupLabel(tweet, ["repost", "retweet"]) || getMetric(tweet, ["retweet", "unretweet"]);
             const likes = fromGroupLabel(tweet, ["like"]) || getMetric(tweet, ["like", "unlike"]);
             const views = fromGroupLabel(tweet, ["view"]);
 
-            if (text && username && date) {
-                // "Only posts with an image" option: skip text-only tweets.
-                if (imagesOnly && imageCount === 0) return;
-                // Skip tweets already captured on a previous scroll.
-                const key = `${handle || username}|${date}|${text}`;
-                if (seen.has(key)) return;
-                seen.add(key);
-                results.push({ username, handle, gender, date, likes, comments, retweets, views, imageCount, imageUrl, images, text });
-            }
-        });
-
-        scrolled++;
-        if (scrolled < scrollLimit) {
-            // Random delay between 2 and 3 seconds.
-            const delay = Math.floor(Math.random() * 1000) + 2000;
-            setTimeout(() => {
-                window.scrollTo(0, document.body.scrollHeight);
-                scrape();
-            }, delay);
-        } else {
-            // Two exports: JSON (raw) + CSV (spreadsheet-friendly, BOM for Excel).
-            download(JSON.stringify(results, null, 2), "tweets.json", "application/json");
-            download("\uFEFF" + toCsv(results), "tweets.csv", "text/csv;charset=utf-8;");
+            results.push({ username, handle, gender, date, likes, comments, retweets, views, imageCount, imageUrl, images, imageScore, imageSkin, text });
         }
     };
 
-    scrape();
+    const run = async () => {
+        for (let i = 0; i < scrollLimit; i++) {
+            await collect();
+            if (i < scrollLimit - 1) {
+                await sleep(Math.floor(Math.random() * 1000) + 2000); // 2\u20133s
+                window.scrollTo(0, document.body.scrollHeight);
+            }
+        }
+        // Two exports: JSON (raw) + CSV (spreadsheet-friendly, BOM for Excel).
+        download(JSON.stringify(results, null, 2), "tweets.json", "application/json");
+        download("\uFEFF" + toCsv(results), "tweets.csv", "text/csv;charset=utf-8;");
+    };
+
+    run();
 }

@@ -1,10 +1,11 @@
 # نصب افزونه Tweet_Extension
 
-> **Fork note (v1.3):** Each scraped tweet now also includes engagement metrics
+> **Fork note (v1.4):** Each scraped tweet now also includes engagement metrics
 > and account info. Scraping produces **two downloads** — `tweets.json` (raw) and
 > `tweets.csv` (spreadsheet-friendly, UTF‑8 BOM so Persian/emoji render in Excel).
-> The popup also has an **"Only posts with an image"** checkbox to gather just
-> media posts. Each record looks like:
+> The popup has an **Image filter** dropdown: `All posts`, `Only posts with an
+> image`, or **`Only images like the sample`** (visual-content match). Each record
+> looks like:
 >
 > ```json
 > {
@@ -19,17 +20,29 @@
 >   "imageCount": 2,
 >   "imageUrl": "https://pbs.twimg.com/media/...",
 >   "images": ["https://pbs.twimg.com/media/...", "..."],
+>   "imageScore": 1.76,
+>   "imageSkin": 0.42,
 >   "text": "..."
 > }
 > ```
 >
 > Notes:
-> - **"Only posts with an image"** filters out text-only tweets. A "post with an
->   image" is detected by a rule *learned from a sample URL set*: real photo
->   attachments are served from `pbs.twimg.com/media/<id>` (100% of the samples),
->   whereas avatars (`/profile_images/`) and link-card thumbnails (`/card_img/`)
->   are excluded. `images` lists every photo on the tweet (X allows up to 4);
->   `imageCount` is how many; `imageUrl` is the first (or `"none"`).
+> - **Image filter.** `Only posts with an image` finds real photo attachments by
+>   URL (`pbs.twimg.com/media/<id>`; avatars and link-card thumbs are excluded).
+>   **`Only images like the sample`** goes further and analyses each photo's
+>   **pixels**: the background service worker fetches the image, downsizes it to
+>   32×32 on an `OffscreenCanvas`, and scores it with a one-class model trained on
+>   the sample set (skin-tone ratio + luma + saturation + colorfulness; match =
+>   enough skin area AND small Mahalanobis distance to the sample mean). It keeps
+>   only person/portrait-style photos. Offline validation: ~82% of the samples
+>   kept, ~83% of non-person control images rejected. `imageScore` is the distance
+>   (lower = closer to the sample class) and `imageSkin` the skin-tone ratio, so
+>   you can inspect/re-threshold. Thresholds live in `background.js`
+>   (`MODEL.skinMin`, `MODEL.distMax`). This needs the `pbs.twimg.com` host
+>   permission so the worker can read image pixels (page `<img>` pixels are
+>   cross-origin-tainted). It is a heuristic, not face recognition.
+> - `images` lists every photo on the tweet (X allows up to 4); `imageCount` is
+>   how many; `imageUrl` is the first (or `"none"`).
 > - **Counts** come from X's locale-stable `data-testid` buttons and the
 >   engagement bar's `aria-label`; abbreviated values (`1.2K`, `3M`) are expanded
 >   to integers.
