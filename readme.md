@@ -1,26 +1,36 @@
 # نصب افزونه Tweet_Extension
 
-> **Fork note (v1.1):** Each scraped tweet now also includes engagement metrics —
-> **likes** and **comments** counts, plus **retweets** and **views** as a bonus.
-> The exported `tweets.json` objects look like:
+> **Fork note (v1.2):** Each scraped tweet now also includes engagement metrics
+> and account info. Scraping produces **two downloads** — `tweets.json` (raw) and
+> `tweets.csv` (spreadsheet-friendly, UTF‑8 BOM so Persian/emoji render in Excel).
+> Each record looks like:
 >
 > ```json
 > {
->   "text": "...",
->   "username": "...",
+>   "username": "Display Name",
+>   "handle": "@theaccount",
+>   "gender": "male",
 >   "date": "2024-01-01T00:00:00.000Z",
->   "imageUrl": "none",
 >   "likes": 345,
 >   "comments": 12,
 >   "retweets": 5,
->   "views": 78910
+>   "views": 78910,
+>   "imageUrl": "none",
+>   "text": "..."
 > }
 > ```
 >
-> Counts come from X's locale-stable `data-testid` buttons and the engagement
-> bar's `aria-label`, with abbreviated values (`1.2K`, `3M`) expanded to integers.
-> Duplicate tweets across scrolls are de-duplicated, and `x.com` was added to the
-> host permissions alongside `twitter.com`.
+> Notes:
+> - **Counts** come from X's locale-stable `data-testid` buttons and the
+>   engagement bar's `aria-label`; abbreviated values (`1.2K`, `3M`) are expanded
+>   to integers.
+> - **`handle`** is the `@username`, read from the User-Name block or the tweet
+>   permalink.
+> - **`gender`** is *inferred* from the first name of the display name using a
+>   built-in name dictionary (X exposes no gender field). It returns
+>   `male` / `female` / `unknown` and is best-effort — treat it as a heuristic.
+> - Duplicate tweets across scrolls are de-duplicated, and `x.com` was added to
+>   the host permissions alongside `twitter.com`.
 
 ## مراحل نصب افزونه
 
