@@ -138,11 +138,9 @@
       <select id="imageFilter">
         <option value="all">All posts</option>
         <option value="any">Only posts with an image</option>
-        <option value="like">Only images like the sample (solo female portraits)</option>
       </select>
-      <p class="hint">"Like the sample" runs a face/gender model on each photo and
-        keeps only solo female portraits/selfies — rejecting landscapes, screenshots,
-        collages, group shots, news stills and men. First run loads the model (~2&nbsp;MB).</p>
+      <p class="hint">Filtering images by content (e.g. solo female portraits) is done
+        afterwards by the Python tool — run it on the exported <code>tweets.json</code>.</p>
     </div>
     <button id="startScraping">Start Scraping</button>
     <p class="fields">Exports <strong>JSON + CSV</strong> per tweet: username,

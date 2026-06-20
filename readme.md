@@ -1,11 +1,11 @@
 # نصب افزونه Tweet_Extension
 
-> **Fork note (v1.5):** Each scraped tweet now also includes engagement metrics
-> and account info. Scraping produces **two downloads** — `tweets.json` (raw) and
-> `tweets.csv` (spreadsheet-friendly, UTF‑8 BOM so Persian/emoji render in Excel).
-> The popup has an **Image filter** dropdown: `All posts`, `Only posts with an
-> image`, or **`Only images like the sample`** (solo female portraits). Each record
-> looks like:
+> **Fork note (v1.6):** The extension is now a lightweight **exporter** — image
+> classification (solo female portraits, etc.) moved to a standalone, testable
+> Python tool in [`xtool/`](xtool/README.md). Scraping produces **two downloads** —
+> `tweets.json` (raw) and `tweets.csv` (spreadsheet-friendly, UTF‑8 BOM so
+> Persian/emoji render in Excel). The popup **Image filter** dropdown is `All posts`
+> or `Only posts with an image`. Each record looks like:
 >
 > ```json
 > {
@@ -20,29 +20,18 @@
 >   "imageCount": 2,
 >   "imageUrl": "https://pbs.twimg.com/media/...",
 >   "images": ["https://pbs.twimg.com/media/...", "..."],
->   "faceCount": 1,
->   "faceGender": "female",
->   "faceProb": 0.97,
 >   "text": "..."
 > }
 > ```
 >
+> To filter the export by image content, feed it to the Python tool:
+> `python xtool/run.py --input tweets.json --filter like` (InsightFace + CLIP, runs
+> locally; see `xtool/README.md`). This replaces the old in-browser face model, which
+> was hard to test — the v1.5 `face-api.js` / offscreen-document approach was removed.
+>
 > Notes:
 > - **Image filter.** `Only posts with an image` finds real photo attachments by
 >   URL (`pbs.twimg.com/media/<id>`; avatars and link-card thumbs are excluded).
->   **`Only images like the sample`** analyses each photo's **content** with a
->   bundled **face + gender model** (`face-api.js` / TensorFlow.js, ~2 MB). It runs
->   in an **offscreen document** (the model needs DOM; the service worker doesn't
->   have it). A post is kept only when a photo is a **solo female portrait**:
->   exactly one face, classified `female` with probability ≥ `0.65`, and the face
->   spanning ≥ `7%` of the image width. This rejects landscapes / screenshots /
->   desks / collages / graphics (0 faces), group shots & news stills (>1 face),
->   and men. `faceCount` / `faceGender` / `faceProb` are written to each record so
->   you can inspect and re-threshold. Thresholds live in `background.js`
->   (`FACE.minGenderProb`, `FACE.minFaceWidthFrac`). If the model fails to load,
->   it falls back to a skin-tone heuristic so scraping still works. Needs the
->   `pbs.twimg.com` host permission to read image pixels. It is a statistical
->   model, not perfect identification.
 > - `images` lists every photo on the tweet (X allows up to 4); `imageCount` is
 >   how many; `imageUrl` is the first (or `"none"`).
 > - **Counts** come from X's locale-stable `data-testid` buttons and the
@@ -71,10 +60,6 @@
 - `manifest.json`
 - `popup.html`
 - `popup.js`
-- `offscreen.html`
-- `offscreen.js`
-- `faceapi.js`
-- `models/` (پوشه‌ی مدل تشخیص چهره/جنسیت — شامل ۴ فایل)
 
 سپس تمام این فایل‌ها را در یک فولدر به نام **Tweet_Extension** قرار دهید. این فولدر را برای نصب افزونه به مرورگر معرفی خواهید کرد.
 

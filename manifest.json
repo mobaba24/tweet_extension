@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Tweet Scraper",
-  "version": "1.5",
-  "permissions": ["scripting", "activeTab", "downloads", "offscreen"],
-  "host_permissions": ["https://*.twitter.com/*", "https://*.x.com/*", "https://pbs.twimg.com/*"],
+  "version": "1.6",
+  "permissions": ["scripting", "activeTab", "downloads"],
+  "host_permissions": ["https://*.twitter.com/*", "https://*.x.com/*"],
   "background": {
     "service_worker": "background.js"
   },
