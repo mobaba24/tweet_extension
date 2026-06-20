@@ -74,12 +74,16 @@ Each record also has the account **gender** inferred from the display name
 Model inference is cached to `out/features.json`, so after the first run you can edit
 thresholds in `config.py` and re-run `eval.py` in ~1s to see the effect.
 
-On the 82-image review set (49 samples + 33 reviewed), after correcting the labels
-and adding the recall boosters: **accuracy 100%, precision 100%, recall 100%**
-(up from 78% recall / 80% accuracy with the naive strict rule). Note this is the set
-the thresholds were tuned on — expect somewhat lower in the wild; the transferable
-wins are recovering faces the detector misses and CLIP-overriding small-face gender
-errors. Every booster decision is logged in the `decision` column so you can audit it.
+Accuracy:
+- 82-image tuning set: precision 98.5%, recall 100% (the one FP is a dark, faceless
+  group of women — see the body-shot caveat below).
+- 45-post out-of-sample file (a real export, never tuned on): **34/34 keeps correct
+  (no men/groups/non-person), 0 missed women** on manual review.
+
+The target includes **faceless body shots of women** (`NOFACE_RESCUE_CLIP = 0.85`).
+Because a faceless image can't be face-counted, a faceless *group* of women can
+slip through — raise `NOFACE_RESCUE_CLIP` toward 0.96 to exclude faceless shots
+again. Every decision is logged in the `decision` column so you can audit it.
 
 ## Files
 - `config.py` — all thresholds, CLIP prompts, paths

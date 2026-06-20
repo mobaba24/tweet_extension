@@ -94,8 +94,9 @@ def decide(f, cfg=config):
 
     Rules (tuned on the labeled review set):
       - >1 face                         -> group (reject)
-      - 0 faces but CLIP very confident -> rescue (face hidden/cropped/zoomed),
-        unless CLIP also reads "group"
+      - 0 faces but CLIP confident "woman" -> keep (face hidden/cropped/zoomed, or a
+        faceless body shot), unless CLIP also reads "group". NOTE: a faceless image
+        can't be face-counted, so a faceless group of women can slip through here.
       - 1 face: must be female & large enough & CLIP agrees. InsightFace gender is
         trusted on large faces; on small faces (where it's noisier) a confident CLIP
         "woman" can override a 'male' call.

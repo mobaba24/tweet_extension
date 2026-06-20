@@ -22,8 +22,11 @@ FACE_SIZE_MIN = 0.045                   # face bbox width / image width (portrai
 ALLOW_FACES = 1                         # exactly this many faces = "solo"
 
 # ---- Recall boosters (tuned on the labeled review set) ----------------------
-# Recover real women InsightFace misses without admitting false positives.
-NOFACE_RESCUE_CLIP = 0.96               # 0 faces but CLIP this confident "woman" -> keep
+# Recover real women InsightFace misses (faces hidden/cropped/zoomed, and faceless
+# body shots — see @Atosa_Aryan). Caveat: a faceless image can't be face-counted, so
+# at this threshold a faceless *group* of women can also slip through (CLIP can't tell
+# them apart). Raise toward 0.96 if you want to exclude faceless body shots again.
+NOFACE_RESCUE_CLIP = 0.85               # 0 faces but CLIP this confident "woman" -> keep
 NOFACE_MAX_GROUP = 0.15                 #   ...unless CLIP also reads "group of people"
 GENDER_TRUST_SIZE = 0.20               # trust a 'male' call only on faces this big
 GENDER_CLIP_OVERRIDE = 0.90             # below that size, CLIP this confident overrides 'male'
