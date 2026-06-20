@@ -86,6 +86,17 @@
     footer a:hover {
       color: #fff;
     }
+
+    .fields {
+      margin: 12px 0 0;
+      font-size: 0.8em;
+      line-height: 1.4;
+      color: #aaa;
+    }
+
+    .fields strong {
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -94,6 +105,8 @@
     <label for="scrollLimit">Scroll Limit:</label>
     <input type="number" id="scrollLimit" placeholder="e.g., 10" />
     <button id="startScraping">Start Scraping</button>
+    <p class="fields">Exports per tweet: text, username, date, image,
+      <strong>likes</strong>, <strong>comments</strong>, retweets &amp; views.</p>
     <footer>
       <p>Developed by <a href="https://jahaniwww.com" target="_blank">Ali Jahani</a></p>
     </footer>

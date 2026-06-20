@@ -1,5 +1,27 @@
 # نصب افزونه Tweet_Extension
 
+> **Fork note (v1.1):** Each scraped tweet now also includes engagement metrics —
+> **likes** and **comments** counts, plus **retweets** and **views** as a bonus.
+> The exported `tweets.json` objects look like:
+>
+> ```json
+> {
+>   "text": "...",
+>   "username": "...",
+>   "date": "2024-01-01T00:00:00.000Z",
+>   "imageUrl": "none",
+>   "likes": 345,
+>   "comments": 12,
+>   "retweets": 5,
+>   "views": 78910
+> }
+> ```
+>
+> Counts come from X's locale-stable `data-testid` buttons and the engagement
+> bar's `aria-label`, with abbreviated values (`1.2K`, `3M`) expanded to integers.
+> Duplicate tweets across scrolls are de-duplicated, and `x.com` was added to the
+> host permissions alongside `twitter.com`.
+
 ## مراحل نصب افزونه
 
 ### 1. دانلود فایل‌های افزونه
