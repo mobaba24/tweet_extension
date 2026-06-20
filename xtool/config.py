@@ -21,15 +21,18 @@ DET_SCORE_MIN = 0.45                    # min face-detection confidence
 FACE_SIZE_MIN = 0.045                   # face bbox width / image width (portrait framing)
 ALLOW_FACES = 1                         # exactly this many faces = "solo"
 
-# ---- Recall boosters (tuned on the labeled review set) ----------------------
-# Recover real women InsightFace misses (faces hidden/cropped/zoomed, and faceless
-# body shots — see @Atosa_Aryan). Caveat: a faceless image can't be face-counted, so
-# at this threshold a faceless *group* of women can also slip through (CLIP can't tell
-# them apart). Raise toward 0.96 if you want to exclude faceless body shots again.
-NOFACE_RESCUE_CLIP = 0.85               # 0 faces but CLIP this confident "woman" -> keep
-NOFACE_MAX_GROUP = 0.15                 #   ...unless CLIP also reads "group of people"
-GENDER_TRUST_SIZE = 0.20               # trust a 'male' call only on faces this big
-GENDER_CLIP_OVERRIDE = 0.90             # below that size, CLIP this confident overrides 'male'
+# ---- Strictness vs recall ---------------------------------------------------
+# STRICT mode (current): require a clearly-detected FEMALE face. The two recall
+# boosters are OFF, because both can admit wrong images:
+#   * no-face rescue -> objects/scenes CLIP misreads as "woman" (plates, flowers)
+#   * small-face gender override -> a man CLIP misreads as a woman
+# This drops faceless/body shots and back/distant shots, but keeps are trustworthy.
+# To loosen (also keep faceless body shots): set NOFACE_RESCUE_CLIP = 0.85 and
+# GENDER_TRUST_SIZE = 0.20.
+NOFACE_RESCUE_CLIP = None               # None = never keep a 0-face image
+NOFACE_MAX_GROUP = 0.15                 # (only used when rescue is on)
+GENDER_TRUST_SIZE = 0.0                 # 0 = always trust InsightFace 'male' (no CLIP override)
+GENDER_CLIP_OVERRIDE = 0.90             # (only used when GENDER_TRUST_SIZE > 0)
 
 # ---- CLIP (second / ensemble model, zero-shot) ------------------------------
 CLIP_MODEL = "ViT-B-32"

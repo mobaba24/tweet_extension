@@ -9,14 +9,18 @@ A local, testable tool that takes X posts (from the extension's export — recom
   landscape / screenshot / collage.
 
 A post is kept (`--filter like`) only when a photo is a **solo female portrait**.
-The decision (`classify.decide`) combines both models:
-- `>1 face` → group (reject); `0 faces` → reject **unless** CLIP is very confident
-  it's a woman and not a group (rescues faces hidden/cropped/zoomed out).
-- `1 face` → must be female, large enough, and CLIP-confirmed. InsightFace gender is
-  trusted on large faces; on small faces (where it's noisier) a confident CLIP
-  "woman" overrides a wrong `male` call.
+The decision (`classify.decide`) combines both models. Default is **STRICT** (tuned
+for zero wrong images — every keep is trustworthy):
+- `>1 face` → group (reject); `0 faces` → reject.
+- `1 face` → keep only if InsightFace says **female**, the face is large enough
+  (`FACE_SIZE_MIN`), detection is confident (`DET_SCORE_MIN`), and CLIP confirms
+  "woman" (`CLIP_MIN`, woman > man).
 
-All thresholds are in `config.py`; `eval.py` measures the effect of each.
+This deliberately drops faceless/body shots and back/distant shots (no verifiable
+face). To **loosen** and also keep those (at the cost of occasional wrong images),
+set in `config.py`: `NOFACE_RESCUE_CLIP = 0.85` (keep 0-face images CLIP is sure are
+women) and `GENDER_TRUST_SIZE = 0.20` (let confident CLIP override a small-face
+`male` call). All thresholds are in `config.py`; `eval.py` measures the effect.
 
 ## Setup
 
@@ -74,18 +78,15 @@ Each record also has the account **gender** inferred from the display name
 Model inference is cached to `out/features.json`, so after the first run you can edit
 thresholds in `config.py` and re-run `eval.py` in ~1s to see the effect.
 
-Accuracy:
-- 82-image tuning set: precision 98.5%, recall 100% (the one FP is a dark, faceless
-  group of women — see the body-shot caveat below).
-- 45-post out-of-sample file: 34/34 keeps correct, 0 missed women (manual review).
-- 83-post out-of-sample file: 56 keeps, ~1 borderline; the only object false positive
-  (a decorative plate + pet reflection CLIP misread as a woman) was removed by adding
-  pet/decorative negative prompts to `CLIP_NEG`.
+Accuracy (STRICT default):
+- 82-image tuning set: **precision 100%** (0 wrong images), recall 86.4%.
+- 83-post out-of-sample file: 50 keeps, **all verified solo women** (0 wrong images);
+  the trade is faceless/body/back/distant shots are dropped.
 
-The target includes **faceless body shots of women** (`NOFACE_RESCUE_CLIP = 0.85`).
-Because a faceless image can't be face-counted, a faceless *group* of women can
-slip through — raise `NOFACE_RESCUE_CLIP` toward 0.96 to exclude faceless shots
-again. Every decision is logged in the `decision` column so you can audit it.
+The previous looser setting (`NOFACE_RESCUE_CLIP = 0.85`) reached ~100% recall but
+admitted occasional wrong images (a decorative plate / pet reflection CLIP misread as
+a woman, a faceless group). Strict trades that recall for trustworthy keeps. Every
+decision is logged in the `decision` column so you can audit it.
 
 ## Files
 - `config.py` — all thresholds, CLIP prompts, paths

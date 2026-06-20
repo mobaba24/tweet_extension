@@ -122,8 +122,8 @@ def decide(f, cfg=config):
         return out(False, "low-det")
 
     if size < cfg.FACE_SIZE_MIN:
-        # solo but small face — keep only if CLIP is a confident woman
-        if clip_pos >= cfg.NOFACE_RESCUE_CLIP and clip_woman:
+        # solo but small face — keep only if CLIP rescue is on and confident
+        if cfg.NOFACE_RESCUE_CLIP is not None and clip_pos >= cfg.NOFACE_RESCUE_CLIP and clip_woman:
             return out(True, "small-but-clip")
         return out(False, "face-too-small")
 
