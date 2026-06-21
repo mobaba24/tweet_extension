@@ -35,10 +35,11 @@ PERSONA = os.environ.get(
 # Only engage with content matching these (comma-separated in .env). Empty = all.
 NICHE_KEYWORDS = [k.strip().lower() for k in os.environ.get("NICHE_KEYWORDS", "").split(",") if k.strip()]
 
-# ---- Telegram group bot (Phase 2) -------------------------------------------
+# ---- Telegram --------------------------------------------------------------
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TG_REPLY_LANG = os.environ.get("TG_REPLY_LANG", "Persian")
+TG_REPLY_LANG = os.environ.get("TG_REPLY_LANG", "Persian")   # default caption language
 TG_MIN_SECONDS_PER_USER = float(os.environ.get("TG_MIN_SECONDS_PER_USER", "8"))
+TG_ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
 
 # ---- X engagement (Phase 3) -------------------------------------------------
 X_API_KEY = os.environ.get("X_API_KEY", "")

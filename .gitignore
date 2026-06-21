@@ -16,3 +16,4 @@ engage/out/
 
 # macOS
 .DS_Store
+engage/stats.json
