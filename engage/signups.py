@@ -1,8 +1,14 @@
 """Shared signup ledger for `bot` tasks. A partner bot (e.g. dordor/heefan) writes
 a user's Telegram id here when they COMPLETE signup; the caption bot verifies via
 has(code, user_id). File path is config.SIGNUPS_FILE (point it at a shared volume
-both bots can reach). Accepts either a flat list of ids, or {code: [ids]}.
-Telegram ids are global, so a flat list is enough — `code` just labels the task."""
+both bots can reach).
+
+Tolerant of several ledger shapes (str/int safe), so the partner bot can use
+whichever it already has:
+  - heefan style:  {"<id>": <ts>, ...}   (ids as keys)   <-- current dordor format
+  - {code: [ids]}                         (per-task lists)
+  - flat list:     [ids]
+Telegram ids are global, so the id alone is the key — `code` just labels the task."""
 import json
 import threading
 
@@ -32,9 +38,15 @@ def add(code, user_id):
 
 def has(code, user_id):
     try:
-        d = json.loads(open(_path(), encoding="utf-8").read())
+        data = json.loads(open(_path(), encoding="utf-8").read())
     except Exception:
         return False
-    if isinstance(d, list):           # flat list of completed-signup ids
-        return user_id in d
-    return user_id in d.get(code, [])  # {code: [ids]}
+    sid = str(user_id)
+    if isinstance(data, dict):
+        if sid in data or user_id in data:                 # heefan {"<id>": ts}
+            return True
+        members = data.get(code, [])                        # {code: [ids]}
+        return user_id in members or sid in [str(m) for m in members]
+    if isinstance(data, list):                              # flat [ids]
+        return user_id in data or sid in [str(m) for m in data]
+    return False
