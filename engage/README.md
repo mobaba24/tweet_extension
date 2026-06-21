@@ -47,6 +47,20 @@ print(CaptionEngine().generate(open("photo.jpg","rb").read(), tone="funny", plat
 PY
 ```
 
+## Sharing a chosen caption
+After picking a caption the bot returns the **photo + that caption**, plus:
+- a tip to use Telegram's own **photo → Share** (carries the image straight into
+  the IG/X app — then paste the caption);
+- a **🐦 prepare-tweet** button (X's share link pre-fills text only — a link can't
+  attach an image), and an **open-Instagram** button.
+
+True one-tap image+caption posting is only possible via API:
+- **X** — `x_post.py` has the upload+tweet core; pending the approved X developer
+  account + a per-user OAuth connect flow (see that file's header). Then a
+  "🚀 پست در ایکس" button posts the photo+caption directly.
+- **Instagram** — not possible for personal accounts (API is Business/Creator only),
+  so IG stays save-and-paste.
+
 ## Deploy
 Long-running bot — deploy to the VPS like the other Telegram bots
 (edit → deploy → verify logs). `.env`, `.venv/`, `out/` are gitignored.
