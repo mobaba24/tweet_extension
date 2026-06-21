@@ -14,7 +14,8 @@ import signups
 import stats
 import tasks
 from caption import CaptionEngine, TONES
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import (BotCommand, BotCommandScopeChat, BotCommandScopeDefault,
+                      InlineKeyboardButton, InlineKeyboardMarkup)
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
@@ -43,7 +44,19 @@ def _main_menu():
     ])
 
 
+def _admin_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 آمار", callback_data="adm:stats"),
+         InlineKeyboardButton("📋 تسک‌ها", callback_data="adm:tasks")],
+        [InlineKeyboardButton("➕ راهنمای افزودن", callback_data="adm:addhelp"),
+         InlineKeyboardButton("📣 پیام همگانی", callback_data="adm:bchelp")],
+    ])
+
+
 async def start(update, ctx: ContextTypes.DEFAULT_TYPE):
+    if _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("🛠 پنل مدیریت", reply_markup=_admin_menu())
+        return
     await update.effective_message.reply_text(
         "سلام! 🤖 به ربات کپشن‌ساز خوش اومدی.\nچیکار کنم برات؟", reply_markup=_main_menu())
 
@@ -64,6 +77,34 @@ async def on_menu(update, ctx: ContextTypes.DEFAULT_TYPE):
             "🔹 از بین کپشن‌ها شماره‌ی هرکدوم رو که خواستی بزن تا با عکس آماده‌ی پست بشه ✅\n\n"
             f"روزی {config.FREE_PER_DAY} کپشن رایگان؛ برای بیشتر، تسک‌ها رو انجام بده.",
             reply_markup=_main_menu())
+
+
+async def on_admin(update, ctx: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    if not _is_admin(q.from_user.id):
+        await q.answer("دسترسی نداری")
+        return
+    await q.answer()
+    what = q.data.split(":", 1)[1]
+    if what == "stats":
+        s = stats.summary()
+        text = (f"📊 آمار\nکاربرها: {s['users']}\nکپشن‌های ساخته‌شده: {s['captions']}\n"
+                f"تعداد تسک‌ها: {len(tasks.list_tasks())}")
+    elif what == "tasks":
+        items = tasks.list_tasks()
+        text = ("📋 تسک‌ها:\n" + "\n".join(f"#{t['id']} [{t['type']}] {t['title']} → {t['target']}" for t in items)
+                if items else "هیچ تسکی تعریف نشده.") + "\n\nحذف: /deltask <id>"
+    elif what == "addhelp":
+        text = ("➕ افزودن تسک:\n"
+                "/addchannel @username عنوان  (بعدش ربات رو ادمینِ کانال کن)\n"
+                "/addbot <code> <deeplink> عنوان\n"
+                "/deltask <id>\n"
+                "/grant <user_id> <task_id>  (اعتبار دستی)")
+    elif what == "bchelp":
+        text = "📣 پیام همگانی:\n/broadcast متن پیام شما"
+    else:
+        text = "—"
+    await q.edit_message_text(text, reply_markup=_admin_menu())
 
 
 async def on_photo(update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -301,15 +342,30 @@ async def cmd_grant(update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("✅ اعتبار داده شد." if ok else "قبلاً گرفته یا نامعتبره.")
 
 
+async def post_init(app: Application):
+    """Scope the command menu: clients see only /start; admins see admin commands."""
+    await app.bot.set_my_commands([BotCommand("start", "شروع 🤖")], scope=BotCommandScopeDefault())
+    admin_cmds = [BotCommand("start", "پنل مدیریت"), BotCommand("stats", "آمار"),
+                  BotCommand("tasks", "تسک‌ها"), BotCommand("addchannel", "افزودن کانال"),
+                  BotCommand("addbot", "افزودن ربات"), BotCommand("deltask", "حذف تسک"),
+                  BotCommand("grant", "اعتبار دستی"), BotCommand("broadcast", "پیام همگانی")]
+    for aid in config.TG_ADMIN_IDS:
+        try:
+            await app.bot.set_my_commands(admin_cmds, scope=BotCommandScopeChat(chat_id=aid))
+        except Exception as e:  # noqa: BLE001
+            log.warning("set admin commands failed for %s: %s", aid, e)
+
+
 def main():
     if not config.TELEGRAM_BOT_TOKEN:
         raise SystemExit("Set TELEGRAM_BOT_TOKEN in engage/.env (see .env.example)")
-    app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+    app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).post_init(post_init).build()
     for name, fn in [("start", start), ("stats", cmd_stats), ("broadcast", cmd_broadcast),
                      ("addchannel", cmd_addchannel), ("addbot", cmd_addbot), ("tasks", cmd_tasks),
                      ("deltask", cmd_deltask), ("grant", cmd_grant)]:
         app.add_handler(CommandHandler(name, fn))
     app.add_handler(MessageHandler(filters.PHOTO, on_photo))
+    app.add_handler(CallbackQueryHandler(on_admin, pattern=r"^adm:"))
     app.add_handler(CallbackQueryHandler(on_menu, pattern=r"^menu:"))
     app.add_handler(CallbackQueryHandler(on_platform, pattern=r"^plat:"))
     app.add_handler(CallbackQueryHandler(on_tone, pattern=r"^tone:"))
