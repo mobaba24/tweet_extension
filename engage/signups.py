@@ -1,32 +1,40 @@
-"""Shared signup ledger for `bot` tasks. The partner bot (e.g. heefan) calls
-add(code, user_id) when a user signs up via the referral deep link; the caption
-bot calls has(code, user_id) to verify. File-backed — works when both bots share
-this file (same VPS). If they're on different hosts, have the partner bot POST to
-a small sync endpoint or replicate this file; until then admins can /grant."""
+"""Shared signup ledger for `bot` tasks. A partner bot (e.g. dordor/heefan) writes
+a user's Telegram id here when they COMPLETE signup; the caption bot verifies via
+has(code, user_id). File path is config.SIGNUPS_FILE (point it at a shared volume
+both bots can reach). Accepts either a flat list of ids, or {code: [ids]}.
+Telegram ids are global, so a flat list is enough — `code` just labels the task."""
 import json
 import threading
 
 import config
 
-_FILE = config.ROOT / "bot_signups.json"   # { code: [user_id, ...] }
 _LOCK = threading.Lock()
 
 
+def _path():
+    return config.SIGNUPS_FILE
+
+
 def add(code, user_id):
+    """Local helper / for same-process partner code. Writes {code: [ids]}."""
     with _LOCK:
         try:
-            d = json.loads(_FILE.read_text(encoding="utf-8"))
+            d = json.loads(open(_path(), encoding="utf-8").read())
+            if not isinstance(d, dict):
+                d = {}
         except Exception:
             d = {}
         d.setdefault(code, [])
         if user_id not in d[code]:
             d[code].append(user_id)
-        _FILE.write_text(json.dumps(d), encoding="utf-8")
+        open(_path(), "w", encoding="utf-8").write(json.dumps(d))
 
 
 def has(code, user_id):
     try:
-        d = json.loads(_FILE.read_text(encoding="utf-8"))
+        d = json.loads(open(_path(), encoding="utf-8").read())
     except Exception:
         return False
-    return user_id in d.get(code, [])
+    if isinstance(d, list):           # flat list of completed-signup ids
+        return user_id in d
+    return user_id in d.get(code, [])  # {code: [ids]}

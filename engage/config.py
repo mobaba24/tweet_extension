@@ -44,6 +44,8 @@ TG_ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.
 # ---- Credits / quota --------------------------------------------------------
 FREE_PER_DAY = int(os.environ.get("FREE_PER_DAY", "3"))   # free captions per user per day
 TASK_BONUS = int(os.environ.get("TASK_BONUS", "3"))       # credits granted per completed task
+# Shared signup ledger written by partner bots (e.g. dordor/heefan on signup-complete).
+SIGNUPS_FILE = os.environ.get("SIGNUPS_FILE", str(ROOT / "bot_signups.json"))
 
 # ---- X engagement (Phase 3) -------------------------------------------------
 X_API_KEY = os.environ.get("X_API_KEY", "")

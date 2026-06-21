@@ -6,6 +6,7 @@ caption ready to post on Instagram/X. 3 free/day; earn +3 via channel/bot tasks.
 """
 import asyncio
 import logging
+from urllib.parse import quote
 
 import config
 import credits
@@ -164,9 +165,18 @@ async def on_pick(update, ctx: ContextTypes.DEFAULT_TYPE):
     chat_id = q.message.chat_id
     # the photo + chosen caption, ready to post
     await ctx.bot.send_photo(chat_id, file_id, caption=cap)
-    # the caption alone, easy to copy
+    # the caption alone + share buttons
+    share_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🐦 اشتراک در ایکس", url=f"https://twitter.com/intent/tweet?text={quote(cap)}")],
+        [InlineKeyboardButton("📸 باز کردن اینستاگرام", url="https://www.instagram.com/")],
+    ])
     await ctx.bot.send_message(
-        chat_id, f"📋 کپشن انتخابی برای {PLAT_FA.get(platform, '')} (کپی کن و پست کن):\n\n{cap}")
+        chat_id,
+        "📋 کپشن آماده‌ست (کپی کن):\n\n" + cap +
+        "\n\nبرای اشتراک، اول عکس بالا رو ذخیره کن، بعد دکمه‌ی زیر 👇\n"
+        "• ایکس: متن آماده می‌شه، فقط عکس رو ضمیمه کن.\n"
+        "• اینستاگرام: پست جدید بساز، عکس رو بذار و کپشن رو پیست کن.",
+        reply_markup=share_kb)
 
 
 async def on_verify(update, ctx: ContextTypes.DEFAULT_TYPE):
