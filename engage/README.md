@@ -1,13 +1,8 @@
-# engage — engagement bots (Telegram + X)
+# engage — Telegram caption bot (+ reply engine)
 
-Turns scraped/classified data into **actions**: a shared Claude reply engine, a
-Telegram group bot, and (later) an X reply bot via the official API.
-
-**Guardrails:** the reply engine is instructed to be relevant + respectful and to
-return `SKIP` for anything hateful/explicit or that it can't answer well — it never
-flirts, sexualizes, or comments on appearance. The X side is **review-first** by
-default; autonomous posting is opt-in behind hard rate limits. No mass unsolicited
-commenting, no fake accounts, no detection evasion.
+A Telegram bot where people send their **own** photo, pick a platform and a vibe,
+and get post-ready captions for Instagram or X — written by Claude's vision.
+Clearly a bot; people come to it on purpose. No scraping, no targeting.
 
 ## Setup
 
@@ -15,44 +10,43 @@ commenting, no fake accounts, no detection evasion.
 cd engage
 python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-cp .env.example .env      # then fill in keys (ANTHROPIC_API_KEY required)
+cp .env.example .env          # fill in ANTHROPIC_API_KEY and TELEGRAM_BOT_TOKEN
 ```
 
-## Phase 1 — reply engine (works now, no browser/token)
+## Caption bot (main product)
 
 ```bash
-.venv/bin/python demo.py ~/Downloads/tweets.json 8
+.venv/bin/python caption_bot.py
 ```
-Prints `{post -> drafted reply}` for the first N posts. Verifies the engine + the
-relevance/safety gate. Tune the persona/keywords in `.env`.
 
-## Phase 2 — Telegram group bot (auto-reply in Persian)
+Flow: user sends a photo → bot asks **platform** (Instagram / X) → asks **vibe**
+(😄 بامزه / ❤️ عاشقانه / 💪 انگیزشی / 🌙 شاعرانه / ✨ مینیمال / 🕶️ باکلاس) →
+returns 3 captions, with a "🔁 یه سری دیگه بساز" button to re-roll. Replies in
+`TG_REPLY_LANG` (default Persian). Instagram captions add a few hashtags; X
+captions stay short and punchy.
 
-1. Create a bot with **@BotFather**, copy the token into `TELEGRAM_BOT_TOKEN`.
-2. To let it read every group message, message @BotFather → `/setprivacy` →
-   **Disable** (or add the bot as a group admin).
-3. Run it:
-   ```bash
-   .venv/bin/python tg_group_bot.py
-   ```
-It replies in `TG_REPLY_LANG` (default Persian), throttled per user
-(`TG_MIN_SECONDS_PER_USER`) so it isn't spammy.
-
-## Phase 3 — X reply bot (official API)
-
-Needs the approved X developer app keys in `.env`. Built review-first: drafts are
-queued for your approval (via Telegram/CLI) before posting; `X_AUTONOMOUS=true`
-enables a guarded autonomous mode under `MAX_REPLIES_PER_HOUR/DAY`. *(Coming once
-the dev account is approved.)*
+Get a bot token from **@BotFather**, put it in `TELEGRAM_BOT_TOKEN`. Captions are
+generated from the user's own uploaded photo — tasteful by design (the vibe, not
+the body).
 
 ## Files
-- `config.py` — settings + `.env` loader
-- `llm.py` — shared Claude reply engine (`ReplyEngine.draft`)
-- `safety.py` — cheap relevance/short-input pre-gate
-- `ingest.py` — load an extension export (json/csv)
-- `demo.py` — Phase-1 offline demo
-- `tg_group_bot.py` — Telegram group bot (Phase 2)
+- `caption.py` — vision caption engine (`CaptionEngine.generate`)
+- `caption_bot.py` — the Telegram caption bot (photo → options → captions)
+- `llm.py` — generic Claude reply engine (`ReplyEngine.draft`) — used by the
+  optional community reply bot below
+- `tg_group_bot.py` — optional: a transparent, respectful community reply bot
+  (on-topic Persian replies, not romantic, not gender-targeted)
+- `safety.py`, `ingest.py`, `config.py`, `demo.py`
+
+## Test the engine offline
+
+```bash
+.venv/bin/python - <<'PY'
+from caption import CaptionEngine
+print(CaptionEngine().generate(open("photo.jpg","rb").read(), tone="funny", platform="instagram"))
+PY
+```
 
 ## Deploy
-Both bots are long-running; deploy to the VPS like the other Telegram bots
-(edit → deploy → verify logs). Keep `.env` out of git (it's gitignored).
+Long-running bot — deploy to the VPS like the other Telegram bots
+(edit → deploy → verify logs). `.env`, `.venv/`, `out/` are gitignored.
