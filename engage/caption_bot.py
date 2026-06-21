@@ -165,17 +165,18 @@ async def on_pick(update, ctx: ContextTypes.DEFAULT_TYPE):
     chat_id = q.message.chat_id
     # the photo + chosen caption, ready to post
     await ctx.bot.send_photo(chat_id, file_id, caption=cap)
-    # the caption alone + share buttons
+    # the caption alone + share helpers (honest: a link can't attach the image)
     share_kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🐦 اشتراک در ایکس", url=f"https://twitter.com/intent/tweet?text={quote(cap)}")],
+        [InlineKeyboardButton("🐦 آماده‌سازی توییت (فقط متن)", url=f"https://twitter.com/intent/tweet?text={quote(cap)}")],
         [InlineKeyboardButton("📸 باز کردن اینستاگرام", url="https://www.instagram.com/")],
     ])
     await ctx.bot.send_message(
         chat_id,
-        "📋 کپشن آماده‌ست (کپی کن):\n\n" + cap +
-        "\n\nبرای اشتراک، اول عکس بالا رو ذخیره کن، بعد دکمه‌ی زیر 👇\n"
-        "• ایکس: متن آماده می‌شه، فقط عکس رو ضمیمه کن.\n"
-        "• اینستاگرام: پست جدید بساز، عکس رو بذار و کپشن رو پیست کن.",
+        "📋 کپشن آماده‌ست:\n\n" + cap +
+        "\n\n⚠️ تلگرام نمی‌تونه عکس رو مستقیم تو پست ایکس/اینستا بذاره. پس:\n"
+        "۱) روی عکس بالا بزن و ذخیره‌ش کن 💾\n"
+        "۲) ایکس: دکمه‌ی پایین متن رو آماده می‌کنه، عکس رو خودت ضمیمه کن.\n"
+        "۳) اینستاگرام: پست جدید بساز، عکس رو بذار و کپشن رو پیست کن.",
         reply_markup=share_kb)
 
 
