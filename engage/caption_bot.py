@@ -1,6 +1,6 @@
 """Telegram caption bot — users send their OWN photo, pick platform + vibe,
-toggle language, get captions. 3 free/day; earn +3 by joining a channel or
-starting a partner bot (admin-configured). Clearly a bot; people come to it.
+toggle language, then pick the caption they like → bot returns the image + that
+caption ready to post on Instagram/X. 3 free/day; earn +3 via channel/bot tasks.
 
     python caption_bot.py        # needs TELEGRAM_BOT_TOKEN in engage/.env
 """
@@ -22,20 +22,47 @@ log = logging.getLogger("caption-bot")
 engine = CaptionEngine()
 
 PLATFORMS = [("📸 اینستاگرام", "instagram"), ("🐦 ایکس (توییتر)", "x")]
+PLAT_FA = {"instagram": "اینستاگرام", "x": "ایکس"}
 TONE_FA = {
     "funny": "😄 بامزه", "romantic": "❤️ عاشقانه", "motivational": "💪 انگیزشی",
     "poetic": "🌙 شاعرانه", "minimal": "✨ مینیمال", "classy": "🕶️ باکلاس",
 }
+NUM = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
 
 
 def _is_admin(uid):
     return uid in config.TG_ADMIN_IDS
 
 
+def _main_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📝 ساخت کپشن برای عکس", callback_data="menu:new")],
+        [InlineKeyboardButton("💎 اعتبار من", callback_data="menu:credits"),
+         InlineKeyboardButton("ℹ️ راهنما", callback_data="menu:help")],
+    ])
+
+
 async def start(update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text(
-        "سلام! من یه ربات کپشن‌سازم 🤖\nیه عکس برام بفرست تا برات چند تا کپشن خفن بسازم.\n"
-        f"روزی {config.FREE_PER_DAY} کپشن رایگان داری.")
+        "سلام! 🤖 به ربات کپشن‌ساز خوش اومدی.\nچیکار کنم برات؟", reply_markup=_main_menu())
+
+
+async def on_menu(update, ctx: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    what = q.data.split(":", 1)[1]
+    if what == "new":
+        await q.edit_message_text("یه عکس برام بفرست 📸 تا برات کپشن بسازم.")
+    elif what == "credits":
+        await q.edit_message_text(
+            f"💎 اعتبار امروزت: {credits.available(q.from_user.id)}\n"
+            f"روزی {config.FREE_PER_DAY} کپشن رایگان داری.", reply_markup=_main_menu())
+    elif what == "help":
+        await q.edit_message_text(
+            "🔹 یه عکس بفرست\n🔹 شبکه (اینستا/ایکس) و حال‌وهوا رو انتخاب کن\n"
+            "🔹 از بین کپشن‌ها شماره‌ی هرکدوم رو که خواستی بزن تا با عکس آماده‌ی پست بشه ✅\n\n"
+            f"روزی {config.FREE_PER_DAY} کپشن رایگان؛ برای بیشتر، تسک‌ها رو انجام بده.",
+            reply_markup=_main_menu())
 
 
 async def on_photo(update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -54,12 +81,13 @@ async def on_platform(update, ctx: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text("چه حال‌وهوایی داشته باشه؟ 🎭", reply_markup=InlineKeyboardMarkup(rows))
 
 
-def _result_kb(tone, lang):
+def _result_kb(tone, lang, n):
     other = "English" if lang == "Persian" else "Persian"
     label = "🌐 English" if lang == "Persian" else "🌐 فارسی"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔁 یه سری دیگه بساز", callback_data=f"tone:{tone}")],
-        [InlineKeyboardButton(label, callback_data=f"lang:{other}")],
+        [InlineKeyboardButton(NUM[i], callback_data=f"pick:{i}") for i in range(min(n, len(NUM)))],
+        [InlineKeyboardButton("🔁 یه سری دیگه", callback_data=f"tone:{tone}"),
+         InlineKeyboardButton(label, callback_data=f"lang:{other}")],
     ])
 
 
@@ -73,7 +101,7 @@ async def _show_tasks(q, uid, note=""):
     rows.append([InlineKeyboardButton("✅ بررسی و دریافت اعتبار", callback_data="verify")])
     await q.edit_message_text(
         note + "اعتبار رایگان امروزت تموم شد 🙏\n"
-        f"برای {config.TASK_BONUS} کپشن بیشتر یکی از کارهای زیر رو انجام بده، بعد دکمه «بررسی» رو بزن:",
+        f"برای {config.TASK_BONUS} کپشن بیشتر یکی از کارهای زیر رو انجام بده، بعد «بررسی» رو بزن:",
         reply_markup=InlineKeyboardMarkup(rows))
 
 
@@ -99,10 +127,13 @@ async def _render(q, ctx):
         return
     credits.consume(uid)
     stats.record(uid)
+    ctx.user_data["caps"] = caps
     head = TONE_FA.get(tone, "") + ("" if lang == "Persian" else " · EN")
+    body = "\n".join(f"{i + 1}. {c}" for i, c in enumerate(caps))
     await q.edit_message_text(
-        f"کپشن‌ها {head}:\n\n{caps}\n\n— اعتبار باقی‌مونده: {credits.available(uid)}",
-        reply_markup=_result_kb(tone, lang))
+        f"کپشن‌ها {head}:\n\n{body}\n\nکدومش رو می‌خوای؟ شماره‌شو بزن 👇\n"
+        f"— اعتبار باقی‌مونده: {credits.available(uid)}",
+        reply_markup=_result_kb(tone, lang, len(caps)))
 
 
 async def on_tone(update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -119,23 +150,23 @@ async def on_lang(update, ctx: ContextTypes.DEFAULT_TYPE):
     await _render(q, ctx)
 
 
-async def _verify_tasks(uid, ctx):
-    granted = 0
-    for t in tasks.list_tasks():
-        if t["id"] in credits.done_tasks(uid):
-            continue
-        ok = False
-        if t["type"] == "channel":
-            try:
-                m = await ctx.bot.get_chat_member(t["target"], uid)
-                ok = m.status in ("member", "administrator", "creator")
-            except Exception:  # noqa: BLE001 - bot not admin / not joined
-                ok = False
-        elif t["type"] == "bot":
-            ok = signups.has(t["target"], uid)
-        if ok and credits.grant(uid, t["id"], t.get("bonus")):
-            granted += t.get("bonus", config.TASK_BONUS)
-    return granted
+async def on_pick(update, ctx: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    idx = int(q.data.split(":", 1)[1])
+    caps = ctx.user_data.get("caps") or []
+    file_id = ctx.user_data.get("photo_id")
+    platform = ctx.user_data.get("platform", "instagram")
+    if not caps or idx >= len(caps) or not file_id:
+        await q.answer("دوباره امتحان کن 🙂")
+        return
+    await q.answer("آماده شد ✅")
+    cap = caps[idx]
+    chat_id = q.message.chat_id
+    # the photo + chosen caption, ready to post
+    await ctx.bot.send_photo(chat_id, file_id, caption=cap)
+    # the caption alone, easy to copy
+    await ctx.bot.send_message(
+        chat_id, f"📋 کپشن انتخابی برای {PLAT_FA.get(platform, '')} (کپی کن و پست کن):\n\n{cap}")
 
 
 async def on_verify(update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -149,6 +180,25 @@ async def on_verify(update, ctx: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(f"✅ {granted} اعتبار اضافه شد! یه عکس بفرست تا کپشن بسازم.")
     else:
         await _show_tasks(q, uid, note="هنوز انجامش ندادی یا تأیید نشد 🤔\n")
+
+
+async def _verify_tasks(uid, ctx):
+    granted = 0
+    for t in tasks.list_tasks():
+        if t["id"] in credits.done_tasks(uid):
+            continue
+        ok = False
+        if t["type"] == "channel":
+            try:
+                m = await ctx.bot.get_chat_member(t["target"], uid)
+                ok = m.status in ("member", "administrator", "creator")
+            except Exception:  # noqa: BLE001
+                ok = False
+        elif t["type"] == "bot":
+            ok = signups.has(t["target"], uid)
+        if ok and credits.grant(uid, t["id"], t.get("bonus")):
+            granted += t.get("bonus", config.TASK_BONUS)
+    return granted
 
 
 # ---- Admin commands ---------------------------------------------------------
@@ -204,8 +254,7 @@ async def cmd_addbot(update, ctx: ContextTypes.DEFAULT_TYPE):
     title = " ".join(ctx.args[2:]).strip() or code
     tid = tasks.add("bot", code, url, title)
     await update.effective_message.reply_text(
-        f"✅ ربات اضافه شد (id={tid}, code={code}).\nبرای تأیید خودکار، ربات مقصد باید موقع /start با همین code، "
-        "آی‌دی کاربر رو در bot_signups ثبت کنه (یا با /grant دستی بده).")
+        f"✅ ربات اضافه شد (id={tid}, code={code}). تأیید بعد از «تکمیل ثبت‌نام» در ربات مقصد انجام می‌شه.")
 
 
 async def cmd_tasks(update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -230,7 +279,6 @@ async def cmd_deltask(update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_grant(update, ctx: ContextTypes.DEFAULT_TYPE):
-    """Manually grant a task's credit to a user (for bot tasks not auto-verified)."""
     if not _is_admin(update.effective_user.id):
         return
     if len(ctx.args) < 2 or not ctx.args[0].lstrip("-").isdigit():
@@ -249,9 +297,11 @@ def main():
                      ("deltask", cmd_deltask), ("grant", cmd_grant)]:
         app.add_handler(CommandHandler(name, fn))
     app.add_handler(MessageHandler(filters.PHOTO, on_photo))
+    app.add_handler(CallbackQueryHandler(on_menu, pattern=r"^menu:"))
     app.add_handler(CallbackQueryHandler(on_platform, pattern=r"^plat:"))
     app.add_handler(CallbackQueryHandler(on_tone, pattern=r"^tone:"))
     app.add_handler(CallbackQueryHandler(on_lang, pattern=r"^lang:"))
+    app.add_handler(CallbackQueryHandler(on_pick, pattern=r"^pick:"))
     app.add_handler(CallbackQueryHandler(on_verify, pattern=r"^verify$"))
     log.info("Caption bot running (free/day=%s, bonus=%s, admins=%s)…",
              config.FREE_PER_DAY, config.TASK_BONUS, config.TG_ADMIN_IDS)

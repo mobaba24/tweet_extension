@@ -1,6 +1,8 @@
 """Caption engine — given a user's photo + options, write post-ready captions
 for Instagram or X using Claude's vision."""
 import base64
+import re
+
 import anthropic
 import config
 
@@ -21,7 +23,7 @@ Rules:
 - Make them natural and post-ready — the kind a real person actually posts.
 - Tasteful and respectful: it's the user's own photo. Caption the vibe, never make crude or sexual remarks about anyone's body.
 - {platform_rule}
-- Output EXACTLY {n} captions, each on its own line, numbered "1." "2." "3.". No preamble, no explanation, nothing else."""
+- Output EXACTLY {n} captions, ONE per line — put the caption and any hashtags on the SAME line. No numbering, no blank lines, no preamble, nothing else."""
 
 _RULES = {
     "instagram": "Instagram style: a short line or two; you may add 2-4 relevant hashtags at the end of each.",
@@ -53,4 +55,10 @@ class CaptionEngine:
                 {"type": "text", "text": f"Write {n} {tone} captions for my {platform} post."},
             ]}],
         )
-        return "".join(b.text for b in resp.content if b.type == "text").strip()
+        text = "".join(b.text for b in resp.content if b.type == "text").strip()
+        caps = []
+        for ln in text.splitlines():
+            ln = re.sub(r"^\s*\d+[.)]\s*", "", ln).strip().strip('"').strip()
+            if ln:
+                caps.append(ln)
+        return caps[:n] if caps else [text]
