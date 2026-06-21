@@ -17,3 +17,6 @@ engage/out/
 # macOS
 .DS_Store
 engage/stats.json
+engage/credits.json
+engage/tasks.json
+engage/bot_signups.json
