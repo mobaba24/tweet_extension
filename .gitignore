@@ -9,5 +9,10 @@ xtool/out/
 __pycache__/
 *.pyc
 
+# engage bots — local env, secrets, outputs
+engage/.venv/
+engage/.env
+engage/out/
+
 # macOS
 .DS_Store

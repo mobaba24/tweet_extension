@@ -1,0 +1,8 @@
+# Reply engine (Phase 1)
+anthropic>=0.40
+
+# Telegram group bot (Phase 2)
+python-telegram-bot>=21
+
+# X engagement via official API (Phase 3)
+tweepy>=4.14
